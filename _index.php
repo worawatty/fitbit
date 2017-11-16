@@ -11,7 +11,7 @@ use djchen\OAuth2\Client\Provider\Fitbit;
 $provider = new Fitbit([
     'clientId'          => '22CLGD',
     'clientSecret'      => '08816ee1bcbdd9b0d826a8a4faa6163c',
-    'redirectUri'       => 'http://localhost/fitbit/callback.php'
+    'redirectUri'       => 'http://localhost:8080/fitbit/callback.php'
 ]);
 
 // start the session
