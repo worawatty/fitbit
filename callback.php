@@ -6,8 +6,13 @@
  * Time: 3:16 PM
  */
 
+//phpinfo();
+
 require_once __DIR__ . '/vendor/autoload.php';
 use djchen\OAuth2\Client\Provider\Fitbit;
+
+
+echo stats_stat_factorial(15);
 
 $provider = new Fitbit([
     'clientId'          => '22CLGD',
@@ -15,12 +20,17 @@ $provider = new Fitbit([
     'redirectUri'       => 'http://localhost:8080/fitbit/callback.php'
 ]);
 
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "fitbit";
+$yesterday = date('Y-m-d',strtotime('-1 days'));
+$today = date('Y-m-d');
+$starttime = '01:00';
+$endtime = '23:00';
 
-echo $_GET['code'];
+var_dump($yesterday);
+var_dump($today);
+
+//echo $_GET['code'];
+$trackerObjects = array();
+
 try {
 
     // Try to get an access token using the authorization code grant.
@@ -39,12 +49,16 @@ try {
     // resource owner.
     $resourceOwner = $provider->getResourceOwner($accessToken);
     $activityAPI = '/1/user/-/activities/date/'.date("Y-m-d").'.json';
-    $activityIntraDayAPI = '/1/user/-/activities/calories/date/today/1d/15min/time/06:00/23:00.json';
+
     $foodLogAPI = '/1/user/-/foods/log/date/'.date('Y-m-d').'.json';
-    $heartRateAPI = '/1/user/-/activities/heart/date/today/1d.json';
+
     $sleepLogAPI = '/1.2/user/-/sleep/date/'.date("Y-m-d").'.json';
     //var_export($resourceOwner->toArray());
 
+
+    //Define API URL
+    $activityIntraDayAPI = '/1/user/-/activities/calories/date/'.$today.'/1d/1min/time/13:00/16:00.json';
+    $heartRateAPI = '/1/user/-/activities/heart/date/'.$today.'/1d/1min/time/13:00/16:00.json';
     // The provider provides a way to get an authenticated API request for
     // the service, using the access token; it returns an object conforming
     // to Psr\Http\Message\RequestInterface.
@@ -73,24 +87,75 @@ try {
     $responseActivityIntraday = $provider->getParsedResponse($requestActivityIntraDay);
 
 
-    //echo gettype($response);
-    //var_export($response);
-    //echo $response['user']['age'];
     $sumCalories = 0;
     foreach ($responseActivityIntraday['activities-calories-intraday']['dataset'] as $data){
         $sumCalories = $sumCalories+$data['value'];
     }
-    $caloriesAverages =  averageCalculator($responseActivityIntraday['activities-calories-intraday']['dataset'],4,'value');
-    foreach ($caloriesAverages as $value){
+
+    $caloriesAverages =  averageCalculator($responseActivityIntraday['activities-calories-intraday']['dataset'],60,'value');
+    $caloriesMax = maxCalculator($responseActivityIntraday['activities-calories-intraday']['dataset'],60,'value');
+    $caloriesMin = minCalculator($responseActivityIntraday['activities-calories-intraday']['dataset'],60,'value');
+    $caloriesSd = stdCalculator($responseActivityIntraday['activities-calories-intraday']['dataset'],60,'value');
+
+    $heartRateAverages = averageCalculator($responseHeartRate['activities-heart-intraday']['dataset'],60,'value');
+    $heartRateMax = maxCalculator($responseHeartRate['activities-heart-intraday']['dataset'],60,'value');
+    $heartRateMin = minCalculator($responseHeartRate['activities-heart-intraday']['dataset'],60,'value');
+    $heartRateSd = stdCalculator($responseHeartRate['activities-heart-intraday']['dataset'],60,'value');
+    /*foreach ($caloriesAverages as $value){
         echo $value."\n";
+    }*/
+
+    if (count($caloriesAverages)==count($caloriesMax)&& count($caloriesMax)==count($caloriesMin) &&count($caloriesMin) == count($caloriesSd)
+        && count($caloriesSd) == count($heartRateAverages) && count($heartRateAverages)== count($heartRateMax)&& count($heartRateMax)==count($heartRateMin)
+        && count($heartRateMin) == count($heartRateSd)){
+
+        for($i=0; $i<count($caloriesSd); $i++){
+            array_push($trackerObjects,array(
+                'averageCalories' => $caloriesAverages[$i],
+                'minCalories' => $caloriesMin[$i],
+                'maxCalories' => $caloriesMax[$i],
+                'sdCalories' => $caloriesSd[$i],
+                'averageHeartRate' => $heartRateAverages[$i],
+                'minHeartRate' => $heartRateMin[$i],
+                'maxHeartRate' => $heartRateMax[$i],
+                'sdHeartRate' => $heartRateMax[$i],
+            ));
+        }
+
+
     }
+
+    foreach ($trackerObjects as $trackerObject){
+        $columns = 'avg_calories,min_calories,max_calories,std_calories,avg_heartrate,min_heartrate,max_heartrate,std_heartrate';
+        $values = implode(',',$trackerObject);
+        //echo $values;
+        insertIntoDB($values,$columns);
+    }
+
+
     echo '<html>';
     echo '<pre>';
-    print_r($responseActivity);
-    print_r($responseFoodLog);
-    print_r($responseHeartRate);
-    print_r($responseSleepLog);
-    print_r($responseActivityIntraday);
+    /*echo count($caloriesAverages);
+    echo count($caloriesMax);
+    echo count($caloriesMax);
+    echo count($caloriesMin);
+    echo count($caloriesMin);
+    echo count($caloriesSd);
+    echo count($caloriesSd);
+    echo count($heartRateAverages);
+    echo count($heartRateAverages);
+    echo count($heartRateMax);
+    echo count($heartRateMax);
+    echo count($heartRateMin);
+    echo count($heartRateMin);
+    echo count($heartRateSd);*/
+    //print_r($caloriesMin);
+    //print_r($caloriesMax);
+    //print_r($caloriesAverages);
+    //print_r(stdCalculator($responseActivityIntraday['activities-calories-intraday']['dataset'],4,'value'));
+    //print_r($responseActivityIntraday);
+    //print_r($heartrateAverages);
+    print_r($trackerObjects);
     echo '</pre>';
     echo '</html>';
     // If you would like to get the response headers in addition to the response body, use:
@@ -107,22 +172,7 @@ try {
 }
 
 
-// Create connection
-$conn = new mysqli($servername, $username, $password, $dbname);
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
 
-$sql = "INSERT INTO trackerdata (avg_heartrate)
-VALUES ('72')";
-
-if ($conn->query($sql) === TRUE) {
-    echo "New record created successfully";
-} else {
-    echo "Error: " . $sql . "<br>" . $conn->error;
-}
-$conn->close();
 
 
 
@@ -155,6 +205,7 @@ function averageCalculator($dataset,$interval,$key){
             $count++;
             $intervalComplete=false;
         }else{
+            $sum+=$data[$key];
             $average=$sum/$interval;
             $sum=0;
             array_push($allAverage,$average);
@@ -169,5 +220,135 @@ function averageCalculator($dataset,$interval,$key){
     }
     //var_dump($allAverage);
     return $allAverage;
+}
+
+function stdCalculator($dataset,$interval,$key){
+    $allSTD = array();
+    $count = 1;
+    $intervalComplete = true;
+    $std = 0;
+    $minuteData = array();
+    foreach ($dataset as $data){
+        if(($count%$interval)!=0){
+            //$sum+=$data[$key];
+            //echo $sum.'\n';
+
+            array_push($minuteData,$data[$key]);
+            $count++;
+            $intervalComplete=false;
+        }else{
+
+            //calculate standardDeviation for one hour and push to array
+            array_push($minuteData,$data[$key]);
+            //var_dump($minuteData);
+            array_push($allSTD,sd($minuteData));
+            $minuteData=array();
+            $count++;
+            $intervalComplete=true;
+        }
+    }
+
+    if(!$intervalComplete){
+
+        array_push($allSTD,sd($minuteData));
+    }
+    return $allSTD;
+}
+
+// Function to calculate square of value - mean
+function sd_square($x, $mean) { return pow($x - $mean,2); }
+
+// Function to calculate standard deviation (uses sd_square)
+function sd($array) {
+
+// square root of sum of squares devided by N-1
+    return sqrt(array_sum(array_map("sd_square", $array, array_fill(0,count($array), (array_sum($array) / count($array)) ) ) ) / (count($array)) );
+}
+
+
+function maxCalculator($dataset,$interval,$key){
+    $allMax = array();
+    $count = 1;
+    $intervalComplete = true;
+    $hourData=array();
+    foreach ($dataset as $data){
+        if(($count%$interval)!=0){
+            array_push($hourData,$data[$key]);
+            $count++;
+            $intervalComplete=false;
+
+        }else{
+            array_push($hourData,$data[$key]);
+            array_push($allMax,max($hourData));
+            $count++;
+            $intervalComplete=true;
+
+            $hourData=array();
+        }
+    }
+
+    if(!$intervalComplete){
+        array_push($hourData,$data[$key]);
+        array_push($allMax,max($hourData));
+        $intervalComplete=true;
+    }
+    return $allMax;
+}
+
+function minCalculator($dataset,$interval,$key){
+    $allMin = array();
+    $count = 1;
+    $intervalComplete = true;
+    $hourData=array();
+    foreach ($dataset as $data){
+        if(($count%$interval)!=0){
+            array_push($hourData,$data[$key]);
+            $count++;
+            $intervalComplete=false;
+
+        }else{
+            array_push($hourData,$data[$key]);
+            array_push($allMin,min($hourData));
+            $count++;
+            $intervalComplete=true;
+
+            $hourData=array();
+        }
+    }
+
+    if(!$intervalComplete){
+        array_push($hourData,$data[$key]);
+        array_push($allMin,min($hourData));
+        $intervalComplete=true;
+    }
+    return $allMin;
+
+}
+
+function insertIntoDB($values,$columns){
+
+//MySQL Information
+    $servername = "localhost";
+    $username = "root";
+    $password = "";
+    $dbname = "fitbit";
+    $tablename = "trackerdata";
+
+    // Create connection
+    $conn = new mysqli($servername, $username, $password, $dbname);
+// Check connection
+    if ($conn->connect_error) {
+        die("Connection failed: " . $conn->connect_error);
+    }
+
+
+    $sql = "INSERT INTO ".$tablename." (".$columns.") VALUES (".$values.")";
+
+    if ($conn->query($sql) === TRUE) {
+        echo "New record created successfully";
+    } else {
+        echo "Error: " . $sql . "<br>" . $conn->error;
+    }
+    $conn->close();
 }
 
