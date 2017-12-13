@@ -21,7 +21,7 @@ $provider = new Fitbit([
 ]);
 
 $yesterday = date('Y-m-d',strtotime('-2 days'));
-$today = date('Y-m-d');
+$today = '2017-12-06';
 $starttime = '01:00';
 $endtime = '23:00';
 
@@ -57,8 +57,8 @@ try {
 
 
     //Define API URL
-    $activityIntraDayAPI = '/1/user/-/activities/calories/date/'.$today.'/1d/1min/time/10:00/11:00.json';
-    $heartRateAPI = '/1/user/-/activities/heart/date/'.$today.'/1d/1min/time/10:00/11:00.json';
+    $activityIntraDayAPI = '/1/user/-/activities/calories/date/'.$today.'/1d/1min/time/10:00/13:00.json';
+    $heartRateAPI = '/1/user/-/activities/heart/date/'.$today.'/1d/1min/time/15:00/16:00.json';
     $sleepLogAPI = '/1.2/user/-/sleep/date/'.$today.'.json';
     $stepAPI = '/1/user/-/activities/steps/date/'.$today.'/1d/1min/time/10:00/11:00.json';
     $restingHeartRateAPI = '/1/user/-/activities/heart/date/'.$today.'/1d.json';
@@ -77,20 +77,20 @@ try {
     );*/
     // Make the authenticated API request and get the parsed response.
     //$requestActivity=apiRequest($activityAPI,$provider,$accessToken);
-    $requestFoodLog=apiRequest($foodLogAPI,$provider,$accessToken);
+    //$requestFoodLog=apiRequest($foodLogAPI,$provider,$accessToken);
     $requestHeartRate=apiRequest($heartRateAPI,$provider,$accessToken);
-    $requestSleepLog=apiRequest($sleepLogAPI,$provider,$accessToken);
+   // $requestSleepLog=apiRequest($sleepLogAPI,$provider,$accessToken);
     $requestActivityIntraDay=apiRequest($activityIntraDayAPI,$provider,$accessToken);
-    $requestSteps=apiRequest($stepAPI,$provider,$accessToken);
-    $requestRestingHR=apiRequest($restingHeartRateAPI,$provider,$accessToken);
+    //$requestSteps=apiRequest($stepAPI,$provider,$accessToken);
+    //$requestRestingHR=apiRequest($restingHeartRateAPI,$provider,$accessToken);
     //Request for the parsed Response
     //$responseActivity = $provider->getParsedResponse($requestActivity);
-    $responseFoodLog = $provider->getParsedResponse($requestFoodLog);
+    //$responseFoodLog = $provider->getParsedResponse($requestFoodLog);
     $responseHeartRate = $provider->getParsedResponse($requestHeartRate);
-    $responseSleepLog = $provider->getParsedResponse($requestSleepLog);
+    //$responseSleepLog = $provider->getParsedResponse($requestSleepLog);
     $responseActivityIntraday = $provider->getParsedResponse($requestActivityIntraDay);
-    $responseSteps=$provider->getParsedResponse($requestSteps);
-    $responseRestingHR=$provider->getParsedResponse($requestRestingHR);
+    //$responseSteps=$provider->getParsedResponse($requestSteps);
+    //$responseRestingHR=$provider->getParsedResponse($requestRestingHR);
 
 
     $sumCalories = 0;
@@ -109,18 +109,18 @@ try {
     $heartRateMin = minCalculator($responseHeartRate['activities-heart-intraday']['dataset'],60,'value');
     $heartRateSd = stdCalculator($responseHeartRate['activities-heart-intraday']['dataset'],60,'value');
 
-    $stepsAverages = averageCalculator($responseSteps['activities-steps-intraday']['dataset'],60,'value');
+    /*$stepsAverages = averageCalculator($responseSteps['activities-steps-intraday']['dataset'],60,'value');
     $stepsMax = maxCalculator($responseSteps['activities-steps-intraday']['dataset'],60,'value');
     $stepsMin = minCalculator($responseSteps['activities-steps-intraday']['dataset'],60,'value');
     $stepsSd = stdCalculator($responseSteps['activities-steps-intraday']['dataset'],60,'value');
-    $stepsSum = sumCalculator($responseSteps['activities-steps-intraday']['dataset'],60,'value');
+    $stepsSum = sumCalculator($responseSteps['activities-steps-intraday']['dataset'],60,'value');*/
 
 
     /*foreach ($caloriesAverages as $value){
         echo $value."\n";
     }*/
 
-    if (count($caloriesAverages)==count($caloriesMax)&& count($caloriesMax)==count($caloriesMin) &&count($caloriesMin) == count($caloriesSd)
+    /*if (count($caloriesAverages)==count($caloriesMax)&& count($caloriesMax)==count($caloriesMin) &&count($caloriesMin) == count($caloriesSd)
         && count($caloriesSd) == count($heartRateAverages) && count($heartRateAverages)== count($heartRateMax)&& count($heartRateMax)==count($heartRateMin)
         && count($heartRateMin) == count($heartRateSd)){
 
@@ -162,7 +162,7 @@ try {
         $values = implode(',',$trackerObject);
         //echo $values;
         //insertIntoDB($values,$columns);
-    }
+    }*/
 
 
     echo '<html>';
@@ -181,13 +181,21 @@ try {
     echo count($heartRateMin);
     echo count($heartRateMin);
     echo count($heartRateSd);*/
-    //print_r($caloriesMin);
-    //print_r($caloriesMax);
-    //print_r($caloriesAverages);
+    print_r($caloriesMin);
+    print_r($caloriesMax);
+    print_r($caloriesAverages);
+    print_r($caloriesSum);
+    print_r($caloriesSd);
+
+    print_r($heartRateAverages);
+    print_r($heartRateMax);
+    print_r($heartRateMin);
+    print_r($heartRateSd);
     //print_r(stdCalculator($responseActivityIntraday['activities-calories-intraday']['dataset'],4,'value'));
-    print_r($trackerObjects);
+    //print_r($trackerObjects);
     //print_r($responseRestingHR);
-    print_r($responseActivityIntraday);
+    //print_r($responseActivityIntraday);
+    print_r($responseHeartRate);
     //print_r($responseSteps);
     //print_r($heartrateAverages);
 
@@ -228,12 +236,36 @@ function apiRequest($apiURL, $provider, $accessToken){
 }
 
 function averageCalculator($dataset,$interval,$key){
-    $count =1;
+    $count =0;
     $sum = 0;
     $average = 0;
     $allAverage = array();
     $intervalComplete = true;
+    $intervalcount = 0;
+    $basetime = (int)substr($dataset[0]['time'],0,2);
+    //var_dump($basetime);
     foreach ($dataset as $data){
+        $time = (int)substr($data['time'],0,2);
+        //var_dump($time);
+        if ($time-$basetime==0){
+            $sum+=$data[$key];
+            //echo $sum.'\n';
+
+            $count++;
+            $intervalComplete=false;
+        }else{
+            $sum+=$data[$key];
+            $count++;
+            $average=$sum/$count;
+            $sum=0;
+            array_push($allAverage,$average);
+            $average=0;
+            $count=0;
+            $basetime = (int)substr($data['time'],0,2);
+            var_dump($count);
+            $intervalComplete=true;
+        }
+        /*
         if(($count%$interval)!=0){
             $sum+=$data[$key];
             //echo $sum.'\n';
@@ -246,25 +278,46 @@ function averageCalculator($dataset,$interval,$key){
             $sum=0;
             array_push($allAverage,$average);
             $average=0;
+            var_dump($count);
             $count++;
             $intervalComplete=true;
-        }
+        }*/
     }
-    /*if(!$intervalComplete){
+    if(!$intervalComplete){
         $average=$sum/$count;
         array_push($allAverage,$average);
-    }*/
+    }
     //var_dump($allAverage);
     return $allAverage;
 }
 
 function sumCalculator($dataset,$interval,$key){
-    $count =1;
+    $count =0;
     $sum = 0;
     $average = 0;
     $allSums = array();
+    $basetime = (int)substr($dataset[0]['time'],0,2);
     $intervalComplete = true;
     foreach ($dataset as $data){
+        $time = (int)substr($data['time'],0,2);
+
+        if($time-$basetime==0){
+            $sum+=$data[$key];
+            //echo $sum.'\n';
+
+            $count++;
+            $intervalComplete=false;
+        }else{
+            $sum+=$data[$key];
+            //$average=$sum/$interval;
+
+            array_push($allSums,$sum);
+            $sum=0;
+            $basetime = (int)substr($data['time'],0,2);
+            $count=0;
+            $intervalComplete=true;
+        }
+        /*
         if(($count%$interval)!=0){
             $sum+=$data[$key];
             //echo $sum.'\n';
@@ -280,24 +333,26 @@ function sumCalculator($dataset,$interval,$key){
             $average=0;
             $count++;
             $intervalComplete=true;
-        }
+        }*/
     }
-    /*if(!$intervalComplete){
-        $average=$sum/$count;
-        array_push($allAverage,$average);
-    }*/
+    if(!$intervalComplete){
+
+        array_push($allSums,$sum);
+    }
     //var_dump($allAverage);
     return $allSums;
 }
 
 function stdCalculator($dataset,$interval,$key){
     $allSTD = array();
-    $count = 1;
+    $count = 0;
     $intervalComplete = true;
     $std = 0;
     $minuteData = array();
+    $basetime = (int)substr($dataset[0]['time'],0,2);
     foreach ($dataset as $data){
-        if(($count%$interval)!=0){
+        $time = (int)substr($data['time'],0,2);
+        if($time-$basetime==0){
             //$sum+=$data[$key];
             //echo $sum.'\n';
 
@@ -311,15 +366,16 @@ function stdCalculator($dataset,$interval,$key){
             //var_dump($minuteData);
             array_push($allSTD,sd($minuteData));
             $minuteData=array();
-            $count++;
+            $basetime = (int)substr($data['time'],0,2);
+            $count==0;
             $intervalComplete=true;
         }
     }
 
-    /*if(!$intervalComplete){
+    if(!$intervalComplete){
 
         array_push($allSTD,sd($minuteData));
-    }*/
+    }
     return $allSTD;
 }
 
@@ -339,27 +395,33 @@ function maxCalculator($dataset,$interval,$key){
     $count = 1;
     $intervalComplete = true;
     $hourData=array();
+    $lastdata=0;
+    $basetime = (int)substr($dataset[0]['time'],0,2);
     foreach ($dataset as $data){
-        if(($count%$interval)!=0){
+        $time = (int)substr($data['time'],0,2);
+        if($time-$basetime==0){
             array_push($hourData,$data[$key]);
             $count++;
+            $lastdata=$data[$key];
             $intervalComplete=false;
+
 
         }else{
             array_push($hourData,$data[$key]);
             array_push($allMax,max($hourData));
-            $count++;
+            $count=0;
+            $basetime = (int)substr($data['time'],0,2);
             $intervalComplete=true;
 
             $hourData=array();
         }
     }
 
-    /*if(!$intervalComplete){
-        array_push($hourData,$data[$key]);
+    if(!$intervalComplete){
+        array_push($hourData,$lastdata);
         array_push($allMax,max($hourData));
         $intervalComplete=true;
-    }*/
+    }
     return $allMax;
 }
 
@@ -368,27 +430,32 @@ function minCalculator($dataset,$interval,$key){
     $count = 1;
     $intervalComplete = true;
     $hourData=array();
+    $basetime = (int)substr($dataset[0]['time'],0,2);
+    $lastdata=0;
     foreach ($dataset as $data){
-        if(($count%$interval)!=0){
+        $time = (int)substr($data['time'],0,2);
+        if($time-$basetime==0){
             array_push($hourData,$data[$key]);
+            $lastdata=$data[$key];
             $count++;
             $intervalComplete=false;
 
         }else{
             array_push($hourData,$data[$key]);
             array_push($allMin,min($hourData));
-            $count++;
+            $count=0;
+            $basetime = (int)substr($data['time'],0,2);
             $intervalComplete=true;
 
             $hourData=array();
         }
     }
 
-    /*if(!$intervalComplete){
-        array_push($hourData,$data[$key]);
+    if(!$intervalComplete){
+        array_push($hourData,$lastdata);
         array_push($allMin,min($hourData));
         $intervalComplete=true;
-    }*/
+    }
     return $allMin;
 
 }
